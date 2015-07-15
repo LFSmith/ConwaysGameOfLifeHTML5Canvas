@@ -1,0 +1,421 @@
+<!doctype HTML>
+<HTML>
+<HEAD>
+	<TITLE>IS LIFE A GAME?</TITLE>
+	<SCRIPT>
+	var BackgroundColor="black";
+	var tickLength=500;
+	var cellSize=20;
+	var cellBorder =3;
+	var TotalCellSize=cellSize+cellBorder;
+	var ticker;
+	var canv;
+	var ctx;
+	var xStart=10;
+	var yStart=0;
+	var cellRows=[];
+	
+
+
+	function cellRow(aYindex)
+	{
+			this.yIndex=aYindex;
+			this.cells=[];
+			this.tmpCells=[];
+			
+			this.smallestCell=function()
+			{
+				var min = 0;
+				if(this.cells.length>0)
+				{
+					min=this.cells[c];
+				}
+
+				for(var c in this.cells)
+				{
+					if(this.cells[c]<min)
+					{
+						min = this.cells[c];
+					}
+				}
+				return min;
+			}
+
+			this.largestCell=function()
+			{
+				var max=0;
+				for(var c in this.cells)
+				{
+					if(this.cells[c]>max)
+					{
+						max = this.cells[c];
+					}
+				}
+
+				return max;
+			}
+
+			this.retieveCellState=function(aXindex)
+			{
+				for(var c in this.cells)
+				{
+					if(this.cells[c]==aXindex)
+					{
+						return true;
+					}
+				}
+				
+				return false;
+			}
+
+			this.hasLiveCells = function()
+			{
+				
+				if(this.cells.length>0)
+				{
+					return true;
+					
+				}
+				
+				return false;
+			}
+		
+
+		this.setCellState=function(aXindex,aState)
+		{
+			
+			var found= false;
+			for(var c = this.tmpCells.length;c>=0;c--)
+			{
+				if(this.tmpCells[c]==aXindex)
+				{
+					found = true;
+					if(aState == false)
+					{
+						this.tmpCells.splice(c,1);
+					}
+				}
+
+
+			}
+
+			if(found == false&&aState == true)
+			{
+				this.tmpCells.push(aXindex);
+
+			}	
+
+		}
+			
+		this.committCellChanges=function()
+		{
+			this.cells = this.tmpCells.slice();
+		}
+
+		//toggles cell state based on tmparray state and commits change immediately
+		this.toggleCellState=function(aXindex)
+		{
+			var found = false;
+			for(var c= this.tmpCells.length;c>=0;--c)
+			{
+				if(aXindex==this.tmpCells[c])
+				{
+					found = true;
+					this.tmpCells.splice(c,1)
+				}
+			}
+			if(found == false)
+			{
+				this.tmpCells.push(aXindex);
+			}
+			this.committCellChanges();
+		}
+
+		return this;
+	}
+
+	function setUp()
+	{
+		canv = document.getElementById("cellCanv");		
+		ctx = canv.getContext("2d");
+		drawCells();
+	}
+
+	function start()
+	{
+		stop();
+		ticker=setInterval(tick,500);
+		
+	}
+	function stop()
+	{
+		console.log("stop");
+		clearInterval(ticker);
+	}
+	function zoomIn()
+	{
+		
+		cellSize++;
+		TotalCellSize=cellSize+cellBorder;
+		drawCells();
+	}
+	function zoomOut()
+	{
+		if(cellSize>1)
+		{
+			cellSize--;
+			TotalCellSize=cellSize+cellBorder;
+			drawCells();
+		}
+		
+		
+	}
+	function moveLeft()
+	{
+		xStart--;
+		drawCells();
+	}
+	function moveRight()
+	{
+		xStart++;
+		drawCells();
+	}
+	function moveUp()
+	{
+		yStart--;
+		drawCells();
+	}
+	function moveDown()
+	{
+		yStart++;
+		drawCells();
+	}
+	function clearField()
+	{
+		cellRows =[];
+		drawCells();
+	}
+	function tick()
+	{
+
+		var borderRows=[];
+		var allRows=[];
+		for(var c in cellRows)
+		{
+			var overFound=false;
+			var underFound =false
+			allRows.push(cellRows[c].yIndex);
+			for(var c1 in cellRows)
+			{
+
+
+				if(cellRows[c1].yIndex==cellRows[c].yIndex+1)
+				{
+					overFound = true
+				}
+				if(cellRows[c1].yIndex==cellRows[c].yIndex-1)
+				{
+					underFound = true
+				}
+			}
+			for(var c1 in borderRows)
+			{
+				if(cellRows[c].yIndex +1== borderRows[c])
+				{
+					overfound = true;
+				}
+
+				if(cellRows[c].yIndex-1==borderRows[c])
+				{
+					underFound ==false;
+				}
+
+			}
+
+			if(overFound == false)
+			{
+				borderRows.push(cellRows[c].yIndex+1);
+				allRows.push(cellRows[c].yIndex+1);
+			}
+
+			if(underFound == false)
+			{
+				borderRows.push(cellRows[c].yIndex-1);
+				allRows.push(cellRows[c].yIndex-1);
+			}
+		}
+
+		for(var c in allRows)
+		{
+			var processRows=[retrieveRow(allRows[c]-1),retrieveRow(allRows[c]),retrieveRow(allRows[c]+1)];
+			var largestNeigbourcell=0;
+			var smallestNeighbourcell=0;
+			for(rc=0;rc<3;rc++)
+			{
+				if(processRows[rc].largestCell()>largestNeigbourcell)
+				{
+					largestNeigbourcell=processRows[rc].largestCell();
+				}
+				if(processRows[rc].smallestCell()<smallestNeighbourcell)
+				{
+					smallestNeighbourcell=processRows[rc].smallestCell();
+				}
+
+			}
+
+			for(var colCount=smallestNeighbourcell-2;colCount<=largestNeigbourcell+1;colCount++)
+			{
+				var liveNeighbours=0;
+
+				for(var rc=0;rc<3;rc++)
+				{
+					currRow=processRows[rc];
+					for(var offsetCount=-1;offsetCount<2;offsetCount++)
+					{
+						if(rc==1&&offsetCount==0)
+						{
+							continue;
+						}
+						if(currRow.retieveCellState(colCount+offsetCount)==true)
+						{
+							liveNeighbours++;
+							
+						}
+					}
+				}
+				if(liveNeighbours<2||liveNeighbours>3)
+				{
+					//die
+					retrieveRow(allRows[c]).setCellState(colCount,false);
+				}
+				if(liveNeighbours==3)
+				{
+					//awaken to life
+					retrieveRow(allRows[c]).setCellState(colCount,true);
+
+				}
+
+
+			}
+
+		}
+
+		for(var c in allRows)
+		{
+			retrieveRow(allRows[c]).committCellChanges();
+		}
+		purgeEmptyRows();
+		drawCells();
+				
+	}
+
+	function handleClick(e)
+	{
+		var xIndex=Math.floor( (e.clientX-canv.getBoundingClientRect().x)/TotalCellSize)+xStart;
+		var yIndex=Math.floor( (e.clientY-canv.getBoundingClientRect().y)/TotalCellSize)+yStart;
+		toggleCellState(xIndex,yIndex);
+		drawCells();
+	}
+
+
+	function purgeEmptyRows()
+	{
+		for(var c=cellRows.length-1;c>=0;c--)
+		{
+			if(cellRows[c].hasLiveCells() == false)
+			{
+				cellRows.splice(c,1);
+			}
+		}
+
+	
+	}
+	function toggleCellState(xIndex,yIndex)
+	{
+		var row = retrieveRow(yIndex);
+		row.toggleCellState(xIndex);
+
+	}
+	function retrieveRow(yIndex)
+	{	
+		
+		for(var c=0;c<cellRows.length;c++)
+		{
+			if(cellRows[c].yIndex == yIndex)
+			{
+				return 	cellRows[c];
+			}
+
+		}
+
+		var newRow=new cellRow(yIndex);
+		cellRows.push(newRow);
+		return newRow;
+	}
+	function setCellState(aCellY,aCellX,aState)
+	{
+		row = retrieveRow(aCellY);
+		row.setCellState(aCellX,aState);
+
+	}
+
+	function drawCells()
+	{
+	
+		var rowCount = canv.height/cellSize;
+		var colCount = canv.width/cellSize;
+		ctx.fillStyle = BackgroundColor;
+		ctx.fillRect(0,0,canv.width,canv.height);
+		for(var c=yStart;c<rowCount+yStart;c++)
+		{
+			var currRow = retrieveRow(c);
+			for(var c1=xStart;c1<colCount+xStart;c1++ )
+			{
+				
+				if(currRow.retieveCellState(c1)==true)
+				{
+					ctx.fillStyle = "#FF0000";
+
+				}else
+				{
+					ctx.fillStyle = "#0000FF";
+					
+				}
+				ctx.fillRect(TotalCellSize*(c1-xStart)+cellBorder,TotalCellSize*(c-yStart)+cellBorder,TotalCellSize-cellBorder,TotalCellSize-cellBorder);
+			}
+		}
+		
+	}
+
+	</SCRIPT>
+</HEAD>
+<BODY onLoad="setUp()"  bgcolor="#0" >
+	<canvas id="cellCanv"  onClick="handleClick(event)" width="900" height="900" style="margin-right:60px;float:left;">
+		
+	</canvas>
+
+<div style="margin-right:200px;">	
+		<div>
+			<image src="imgs/right.png" onclick="start()"></image>
+			<image src="imgs/pause.png" onclick="stop()"></image>
+			<image src="imgs/next.png" onclick="tick()"></image>
+			<image src="imgs/trashcanOpen.png"></image>
+		</div>
+
+	<div>
+	
+		<image src="imgs/arrowUP.png" onclick="moveUp()" style="margin-left:42px"></image></br>
+
+		<image src="imgs/arrowLeft.png" onclick="moveLeft()" ></image>
+		<image src="imgs/arrowRight.png" onclick="moveRight()"></image></br>
+
+		<image src="imgs/arrowDown.png" onclick="moveDown()"style="margin-left:42px"></image>
+	</div>
+	<div>
+		<image src="imgs/zoomIn.png" onclick="zoomIn()"></image>
+		<image src="imgs/zoomOut.png" onclick="zoomOut()"></image>
+	</div>
+</div>
+
+</BODY>	
+</HTML>	
